@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MessageCircle, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { MessageCircle, CheckCircle, Clock, AlertCircle, ArrowLeft, User, Calendar, FileText } from 'lucide-react';
 
 const TicketDetail = () => {
     const { id } = useParams();
@@ -16,8 +16,6 @@ const TicketDetail = () => {
 
     const fetchTicket = async () => {
         try {
-            // In a real app, we'd have a specific endpoint for getting one ticket
-            // For now, we filter from the list (inefficient but works for prototype)
             const res = await axios.get('http://localhost:3000/api/tickets');
             const found = res.data.data.find(t => t.id === parseInt(id));
             setTicket(found);
@@ -38,7 +36,7 @@ const TicketDetail = () => {
                 payload
             });
             alert('Action recorded!');
-            fetchTicket(); // Refresh data
+            fetchTicket();
         } catch (error) {
             console.error('Error performing action:', error);
             alert('Failed to perform action.');
@@ -54,104 +52,146 @@ const TicketDetail = () => {
         return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     };
 
-    if (loading) return <div className="p-8">Loading...</div>;
-    if (!ticket) return <div className="p-8">Ticket not found.</div>;
+    if (loading) return (
+        <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        </div>
+    );
+
+    if (!ticket) return <div className="p-8 text-center text-slate-500">Ticket not found.</div>;
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'Done': return 'bg-green-100 text-green-800 border-green-200';
+            case 'Review Required': return 'bg-purple-100 text-purple-800 border-purple-200';
+            case 'In Progress': return 'bg-blue-100 text-blue-800 border-blue-200';
+            default: return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        }
+    };
 
     return (
-        <div className="max-w-4xl mx-auto p-4">
-            <button onClick={() => navigate('/')} className="mb-4 text-indigo-600 hover:text-indigo-800">
-                &larr; Back to Dashboard
+        <div className="max-w-5xl mx-auto">
+            <button
+                onClick={() => navigate('/')}
+                className="mb-6 flex items-center text-slate-500 hover:text-indigo-600 transition-colors font-medium"
+            >
+                <ArrowLeft className="w-4 h-4 mr-2" /> Back to Board
             </button>
 
-            <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
-                <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
-                    <div>
-                        <h3 className="text-lg leading-6 font-medium text-gray-900">Ticket #{ticket.id}</h3>
-                        <p className="mt-1 max-w-2xl text-sm text-gray-500">{ticket.title}</p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-sm font-bold 
-            ${ticket.status === 'Done' ? 'bg-green-100 text-green-800' :
-                            ticket.status === 'Review Required' ? 'bg-purple-100 text-purple-800' :
-                                'bg-blue-100 text-blue-800'}`}>
-                        {ticket.status}
-                    </span>
-                </div>
-                <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
-                    <dl className="sm:divide-y sm:divide-gray-200">
-                        <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                            <dt className="text-sm font-medium text-gray-500">Requester</dt>
-                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{ticket.requester_name} ({ticket.requester_wa})</dd>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left Column: Ticket Info */}
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="glass-panel p-8 rounded-2xl">
+                        <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h1 className="text-3xl font-bold text-slate-900 mb-2">{ticket.title}</h1>
+                                <div className="flex items-center gap-3 text-sm text-slate-500">
+                                    <span className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
+                                        <Calendar className="w-3 h-3" /> {new Date(ticket.created_at).toLocaleDateString()}
+                                    </span>
+                                    <span className="font-mono text-slate-400">#{ticket.id}</span>
+                                </div>
+                            </div>
+                            <span className={`px-4 py-1.5 rounded-full text-sm font-bold border ${getStatusColor(ticket.status)}`}>
+                                {ticket.status}
+                            </span>
                         </div>
-                        <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                            <dt className="text-sm font-medium text-gray-500">Description</dt>
-                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 whitespace-pre-wrap">{ticket.description}</dd>
+
+                        <div className="prose prose-slate max-w-none">
+                            <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2 mb-3">
+                                <FileText className="w-5 h-5 text-indigo-500" /> Description
+                            </h3>
+                            <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 text-slate-700 whitespace-pre-wrap leading-relaxed">
+                                {ticket.description}
+                            </div>
                         </div>
-                    </dl>
-                </div>
-            </div>
 
-            {/* Action Area */}
-            <div className="bg-white shadow sm:rounded-lg p-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Actions</h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Designer Actions */}
-                    <div className="space-y-3">
-                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Designer Controls</p>
-                        <button
-                            onClick={() => handleAction('START_WORK')}
-                            disabled={actionLoading || ticket.status === 'In Progress'}
-                            className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                        >
-                            <Clock className="mr-2 h-4 w-4" /> Start Work
-                        </button>
-                        <button
-                            onClick={() => handleAction('REQUEST_REVIEW')}
-                            disabled={actionLoading || ticket.status === 'Review Required'}
-                            className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
-                        >
-                            <AlertCircle className="mr-2 h-4 w-4" /> Request Review
-                        </button>
-                    </div>
-
-                    {/* Requester Actions (Simulated) */}
-                    <div className="space-y-3">
-                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Requester Controls</p>
-                        <button
-                            onClick={() => {
-                                const notes = prompt("What needs revision?");
-                                if (notes) handleAction('REQUEST_REVISION', { notes });
-                            }}
-                            disabled={actionLoading}
-                            className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                        >
-                            Request Revision
-                        </button>
-                        <button
-                            onClick={() => handleAction('APPROVE')}
-                            disabled={actionLoading || ticket.status === 'Done'}
-                            className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
-                        >
-                            <CheckCircle className="mr-2 h-4 w-4" /> Approve & Done
-                        </button>
+                        <div className="mt-8 pt-6 border-t border-slate-100">
+                            <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2 mb-4">
+                                <User className="w-5 h-5 text-indigo-500" /> Requester Info
+                            </h3>
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
+                                    {ticket.requester_name.charAt(0)}
+                                </div>
+                                <div>
+                                    <p className="font-medium text-slate-900">{ticket.requester_name}</p>
+                                    <p className="text-slate-500 text-sm">{ticket.requester_wa}</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* WA Notification */}
-                <div className="mt-8 pt-6 border-t border-gray-200">
-                    <h4 className="text-md font-medium text-gray-900 mb-2">Communication Helper</h4>
-                    <a
-                        href={generateWALink()}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-500 hover:bg-green-600"
-                    >
-                        <MessageCircle className="mr-2 h-4 w-4" />
-                        Chat Requester on WhatsApp
-                    </a>
-                    <p className="mt-2 text-sm text-gray-500">
-                        Clicking this will open WhatsApp with a pre-filled status update message.
-                    </p>
+                {/* Right Column: Actions */}
+                <div className="space-y-6">
+                    {/* Action Card */}
+                    <div className="glass-panel p-6 rounded-2xl sticky top-24">
+                        <h3 className="text-lg font-bold text-slate-900 mb-4">Actions</h3>
+
+                        <div className="space-y-6">
+                            {/* Designer Actions */}
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Designer Controls</p>
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={() => handleAction('START_WORK')}
+                                        disabled={actionLoading || ticket.status === 'In Progress'}
+                                        className="w-full btn-primary bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Clock className="mr-2 h-4 w-4" /> Start Work
+                                    </button>
+                                    <button
+                                        onClick={() => handleAction('REQUEST_REVIEW')}
+                                        disabled={actionLoading || ticket.status === 'Review Required'}
+                                        className="w-full btn-primary bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <AlertCircle className="mr-2 h-4 w-4" /> Request Review
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Requester Actions */}
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Requester Controls</p>
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={() => {
+                                            const notes = prompt("What needs revision?");
+                                            if (notes) handleAction('REQUEST_REVISION', { notes });
+                                        }}
+                                        disabled={actionLoading}
+                                        className="w-full btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Request Revision
+                                    </button>
+                                    <button
+                                        onClick={() => handleAction('APPROVE')}
+                                        disabled={actionLoading || ticket.status === 'Done'}
+                                        className="w-full btn-primary bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <CheckCircle className="mr-2 h-4 w-4" /> Approve & Done
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* WA Notification */}
+                            <div className="pt-6 border-t border-slate-200">
+                                <a
+                                    href={generateWALink()}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full btn-primary bg-green-500 hover:bg-green-600 shadow-green-200"
+                                >
+                                    <MessageCircle className="mr-2 h-4 w-4" />
+                                    Chat on WhatsApp
+                                </a>
+                                <p className="mt-3 text-xs text-center text-slate-400">
+                                    Opens WhatsApp with pre-filled status update.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
